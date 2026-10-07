@@ -5,13 +5,16 @@ import android.graphics.Bitmap
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.nexe.pdfforge.data.model.TextPdfOptions
+import com.nexe.pdfforge.data.repository.SettingsRepository
 import com.nexe.pdfforge.util.FileUtils
 import com.nexe.pdfforge.util.PdfUtils
+import com.nexe.pdfforge.util.friendlyMessage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -30,6 +33,22 @@ class TextToPdfViewModel(application: Application) : AndroidViewModel(applicatio
 
     private val _uiState = MutableStateFlow(TextToPdfUiState())
     val uiState: StateFlow<TextToPdfUiState> = _uiState.asStateFlow()
+
+    init {
+        // Start from the user's saved defaults.
+        viewModelScope.launch {
+            val settings = SettingsRepository(application).settings.first()
+            _uiState.update {
+                it.copy(
+                    options = it.options.copy(
+                        fontSize = settings.defaultFontSize,
+                        pageSize = settings.defaultPageSize,
+                        landscape = settings.defaultLandscape
+                    )
+                )
+            }
+        }
+    }
 
     fun updateOptions(transform: (TextPdfOptions) -> TextPdfOptions) {
         _uiState.update { it.copy(options = transform(it.options)) }
@@ -75,19 +94,11 @@ class TextToPdfViewModel(application: Application) : AndroidViewModel(applicatio
                 }
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: IllegalArgumentException) {
-                fail(e.message ?: "Please check your input.")
-            } catch (e: IOException) {
-                fail("Couldn't save the PDF. Check that your phone has free storage and try again.")
-            } catch (e: OutOfMemoryError) {
-                fail("That document is too large to process.")
-            } catch (e: Exception) {
-                fail("Something went wrong while creating the PDF.")
+            } catch (e: Throwable) {
+                _uiState.update {
+                    it.copy(isGenerating = false, message = friendlyMessage(e, "creating the PDF"))
+                }
             }
         }
-    }
-
-    private fun fail(text: String) {
-        _uiState.update { it.copy(isGenerating = false, message = text) }
     }
 }
