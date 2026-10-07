@@ -16,6 +16,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.nexe.pdfforge.ui.screens.ComingSoonScreen
 import com.nexe.pdfforge.ui.screens.HomeScreen
+import com.nexe.pdfforge.ui.screens.TextToPdfScreen
 
 @Composable
 fun AppNavGraph() {
@@ -69,15 +70,25 @@ fun AppNavGraph() {
                     onBack = null
                 )
             }
-            toolSections.flatMap { it.second }.forEach { tool ->
-                composable(tool.route) {
-                    ComingSoonScreen(
-                        title = tool.title,
-                        subtitle = tool.subtitle,
-                        onBack = { navController.popBackStack() }
-                    )
-                }
+
+            // Implemented tools
+            composable(Screen.TextToPdf.route) {
+                TextToPdfScreen(onBack = { navController.popBackStack() })
             }
+
+            // Tools still to come
+            val implemented = setOf(Screen.TextToPdf.route)
+            toolSections.flatMap { it.second }
+                .filter { it.route !in implemented }
+                .forEach { tool ->
+                    composable(tool.route) {
+                        ComingSoonScreen(
+                            title = tool.title,
+                            subtitle = tool.subtitle,
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+                }
         }
     }
 }
