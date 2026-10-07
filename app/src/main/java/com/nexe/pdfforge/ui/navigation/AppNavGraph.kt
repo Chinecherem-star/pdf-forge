@@ -14,8 +14,15 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.nexe.pdfforge.ui.screens.ComingSoonScreen
 import com.nexe.pdfforge.ui.screens.HomeScreen
+import com.nexe.pdfforge.ui.screens.ImageToPdfScreen
+import com.nexe.pdfforge.ui.screens.MergePdfScreen
+import com.nexe.pdfforge.ui.screens.MyFilesScreen
+import com.nexe.pdfforge.ui.screens.PdfInfoScreen
+import com.nexe.pdfforge.ui.screens.PdfToImageScreen
+import com.nexe.pdfforge.ui.screens.SettingsScreen
+import com.nexe.pdfforge.ui.screens.SplitPdfScreen
+import com.nexe.pdfforge.ui.screens.TextConverterScreen
 import com.nexe.pdfforge.ui.screens.TextToPdfScreen
 
 @Composable
@@ -24,6 +31,7 @@ fun AppNavGraph() {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val showBottomBar = bottomNavItems.any { it.route == currentRoute }
+    val goBack: () -> Unit = { navController.popBackStack() }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -56,39 +64,16 @@ fun AppNavGraph() {
             composable(Screen.Home.route) {
                 HomeScreen(onToolClick = { tool -> navController.navigate(tool.route) })
             }
-            composable(Screen.MyFiles.route) {
-                ComingSoonScreen(
-                    title = Screen.MyFiles.title,
-                    subtitle = Screen.MyFiles.subtitle,
-                    onBack = null
-                )
-            }
-            composable(Screen.Settings.route) {
-                ComingSoonScreen(
-                    title = Screen.Settings.title,
-                    subtitle = Screen.Settings.subtitle,
-                    onBack = null
-                )
-            }
+            composable(Screen.MyFiles.route) { MyFilesScreen() }
+            composable(Screen.Settings.route) { SettingsScreen() }
 
-            // Implemented tools
-            composable(Screen.TextToPdf.route) {
-                TextToPdfScreen(onBack = { navController.popBackStack() })
-            }
-
-            // Tools still to come
-            val implemented = setOf(Screen.TextToPdf.route)
-            toolSections.flatMap { it.second }
-                .filter { it.route !in implemented }
-                .forEach { tool ->
-                    composable(tool.route) {
-                        ComingSoonScreen(
-                            title = tool.title,
-                            subtitle = tool.subtitle,
-                            onBack = { navController.popBackStack() }
-                        )
-                    }
-                }
+            composable(Screen.TextToPdf.route) { TextToPdfScreen(onBack = goBack) }
+            composable(Screen.TextConverter.route) { TextConverterScreen(onBack = goBack) }
+            composable(Screen.ImageToPdf.route) { ImageToPdfScreen(onBack = goBack) }
+            composable(Screen.MergePdf.route) { MergePdfScreen(onBack = goBack) }
+            composable(Screen.SplitPdf.route) { SplitPdfScreen(onBack = goBack) }
+            composable(Screen.PdfToImage.route) { PdfToImageScreen(onBack = goBack) }
+            composable(Screen.PdfInfo.route) { PdfInfoScreen(onBack = goBack) }
         }
     }
 }
