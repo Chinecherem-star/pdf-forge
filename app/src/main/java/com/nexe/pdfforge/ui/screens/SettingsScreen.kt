@@ -1,21 +1,37 @@
 package com.nexe.pdfforge.ui.screens
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -26,6 +42,10 @@ import com.nexe.pdfforge.ui.components.ChipRow
 import com.nexe.pdfforge.ui.components.SectionHeader
 import com.nexe.pdfforge.ui.viewmodel.SettingsViewModel
 import com.nexe.pdfforge.util.FileUtils
+
+private const val CONTACT_EMAIL = "nexecreatives@gmail.com"
+private const val PHONE_ONE = "+2348102347790"
+private const val PHONE_TWO = "+2347039476839"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,7 +64,15 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel()) {
     val outputPath = remember { FileUtils.outputDir(context).absolutePath }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Settings") }) }
+        topBar = {
+            TopAppBar(
+                title = { Text("Settings", style = MaterialTheme.typography.titleLarge) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent
+                )
+            )
+        }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -97,6 +125,38 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel()) {
                 }
             }
 
+            SectionHeader("Contact us")
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    ContactRow(
+                        icon = Icons.Rounded.Email,
+                        label = "Email",
+                        value = CONTACT_EMAIL,
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$CONTACT_EMAIL"))
+                                .putExtra(Intent.EXTRA_SUBJECT, "PDF Forge")
+                            launch(context, intent)
+                        }
+                    )
+                    ContactRow(
+                        icon = Icons.Rounded.Call,
+                        label = "Phone",
+                        value = PHONE_ONE,
+                        onClick = { launch(context, Intent(Intent.ACTION_DIAL, Uri.parse("tel:$PHONE_ONE"))) },
+                        actionLabel = "WhatsApp",
+                        onAction = { launch(context, whatsAppIntent(PHONE_ONE)) }
+                    )
+                    ContactRow(
+                        icon = Icons.Rounded.Call,
+                        label = "Phone",
+                        value = PHONE_TWO,
+                        onClick = { launch(context, Intent(Intent.ACTION_DIAL, Uri.parse("tel:$PHONE_TWO"))) },
+                        actionLabel = "WhatsApp",
+                        onAction = { launch(context, whatsAppIntent(PHONE_TWO)) }
+                    )
+                }
+            }
+
             SectionHeader("Privacy")
             Card(modifier = Modifier.fillMaxWidth()) {
                 Text(
@@ -123,5 +183,58 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel()) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ContactRow(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    onClick: () -> Unit,
+    actionLabel: String? = null,
+    onAction: () -> Unit = {}
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 14.dp)
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(text = value, style = MaterialTheme.typography.titleMedium)
+        }
+        if (actionLabel != null) {
+            TextButton(onClick = onAction) { Text(actionLabel) }
+        }
+    }
+}
+
+private fun whatsAppIntent(phone: String): Intent {
+    val digits = phone.filter { it.isDigit() }
+    return Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$digits"))
+}
+
+private fun launch(context: Context, intent: Intent) {
+    try {
+        context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    } catch (e: Exception) {
+        // no app can handle this action
     }
 }
