@@ -100,7 +100,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel()) {
             SectionHeader("Privacy")
             Card(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "PDF Forge works fully offline. Your documents, images and text are processed on your device and are never uploaded. The app doesn't ask for internet access, and it only reads files you choose yourself.",
+                    text = "All PDF Forge tools work offline. Your documents, images and text are processed on your device and are never uploaded. When you're online, the app checks for announcements and updates, and sends anonymous usage counts (which tool was opened and the app version). No files, text or personal details are ever sent.",
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(16.dp)
                 )

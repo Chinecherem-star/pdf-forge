@@ -18,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
@@ -29,16 +30,20 @@ fun ToolCard(
     subtitle: String,
     icon: ImageVector,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
 ) {
     Card(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 136.dp),
+            .heightIn(min = 136.dp)
+            .alpha(if (enabled) 1f else 0.5f),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
@@ -63,6 +68,7 @@ fun ToolCard(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

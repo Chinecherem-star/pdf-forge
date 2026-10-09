@@ -13,18 +13,28 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nexe.pdfforge.data.model.ThemeMode
 import com.nexe.pdfforge.ui.navigation.AppNavGraph
+import com.nexe.pdfforge.ui.screens.UpdateRequiredScreen
 import com.nexe.pdfforge.ui.theme.PdfForgeTheme
+import com.nexe.pdfforge.ui.viewmodel.RemoteConfigViewModel
 import com.nexe.pdfforge.ui.viewmodel.SettingsViewModel
 
 class MainActivity : ComponentActivity() {
 
     private val settingsViewModel: SettingsViewModel by viewModels()
+    private val remoteViewModel: RemoteConfigViewModel by viewModels()
+
+    override fun onStart() {
+        super.onStart()
+        // Pick up admin changes when the app comes back to the foreground.
+        remoteViewModel.refresh()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             val settings by settingsViewModel.state.collectAsStateWithLifecycle()
+            val remote by remoteViewModel.state.collectAsStateWithLifecycle()
             val systemDark = isSystemInDarkTheme()
             val dark = when (settings.themeMode) {
                 ThemeMode.SYSTEM -> systemDark
@@ -51,7 +61,18 @@ class MainActivity : ComponentActivity() {
             }
 
             PdfForgeTheme(darkTheme = dark) {
-                AppNavGraph()
+                if (remote.updateRequired) {
+                    UpdateRequiredScreen(
+                        message = remote.config.updateMessage,
+                        latestVersion = remote.config.latestVersionName,
+                        updateUrl = remote.config.updateUrl
+                    )
+                } else {
+                    AppNavGraph(
+                        config = remote.config,
+                        onToolOpened = remoteViewModel::track
+                    )
+                }
             }
         }
     }
