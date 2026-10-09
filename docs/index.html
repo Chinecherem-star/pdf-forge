@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang='en'>
+<head>
+<meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<meta name='robots' content='noindex'>
+<title>PDF Forge Admin</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1117;--card:#1b1c28;--line:#2c2e42;--text:#e8e9f3;--muted:#9a9db3;--accent:#6366f1;--bad:#f87171;--good:#34d399}
+*{box-sizing:border-box}
+body{margin:0;padding:16px;max-width:720px;margin-inline:auto;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.5}
+h1{font-size:22px;margin:0}
+h2{font-size:17px;margin:0 0 4px}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:16px}
+label{display:block;font-size:13px;color:var(--muted);margin:12px 0 4px}
+input[type=text],input[type=email],input[type=password],input[type=number],input[type=url],textarea{width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:#12131c;color:var(--text);font:inherit}
+textarea{min-height:90px;resize:vertical}
+button{font:inherit;border:0;border-radius:10px;padding:11px 16px;background:var(--accent);color:#fff;cursor:pointer}
+button.ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
+button:disabled{opacity:.5}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.muted{color:var(--muted);font-size:13px}
+.err{color:var(--bad)}
+.chips{display:flex;gap:8px;margin:8px 0 12px}
+.chip{padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text)}
+.chip.on{background:var(--accent);border-color:var(--accent)}
+.bar{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:13px}
+.bar .name{width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .track{flex:1;background:#12131c;border-radius:6px;height:10px;overflow:hidden}
+.bar .fill{height:100%;background:var(--accent)}
+.bar .num{width:44px;text-align:right}
+.big{font-size:32px;font-weight:700}
+.toast{position:fixed;left:16px;right:16px;bottom:16px;padding:12px 16px;border-radius:12px;background:var(--good);color:#04130d;text-align:center;z-index:10}
+.toast.bad{background:var(--bad);color:#2b0505}
+input[type=checkbox]{width:22px;height:22px;accent-color:var(--accent)}
+</style>
+</head>
+<body>
+<div id='app'></div>
+<script src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'></script>
+<script>
+const SUPABASE_URL='https://ewdlbshwncbuvdtdhxrd.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3ZGxic2h3bmNidXZkdGRoeHJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0NDc2OTksImV4cCI6MjEwNzAyMzY5OX0.gEJkf5yMSqbJ4WpgTO_h5tT9ZjGQm74o-iTYqDXJjYc';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const root=document.getElementById('app');
+
+const TOOLS=[['text_to_pdf','Text to PDF'],['text_converter','Text Converter'],['image_to_pdf','Image to PDF'],['merge_pdf','Merge PDF'],['split_pdf','Split PDF'],['pdf_to_image','PDF to Image'],['pdf_info','PDF Info']];
+const TOOL_NAMES=Object.fromEntries(TOOLS);
+TOOL_NAMES.app_open='App opens';
+
+// All text is added with createTextNode, so nothing from the database is ever treated as HTML.
+function el(tag,attrs,...kids){
+  const e=document.createElement(tag);
+  if(attrs){
+    for(const k of Object.keys(attrs)){
+      const v=attrs[k];
+      if(k==='class')e.className=v;
+      else if(k==='value')e.value=v;
+      else if(k==='checked')e.checked=v;
+      else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);
+      else e.setAttribute(k,v);
+    }
+  }
+  for(const kid of kids.flat()){
+    if(kid===null||kid===undefined)continue;
+    e.append(kid.nodeType?kid:document.createTextNode(String(kid)));
+  }
+  return e;
+}
+
+function toast(msg,bad){
+  const t=el('div',{class:'toast'+(bad?' bad':'')},msg);
+  document.body.append(t);
+  setTimeout(()=>t.remove(),2800);
+}
+
+async function save(patch,btn){
+  btn.disabled=true;
+  const res=await sb.from('app_config').update(Object.assign({},patch,{updated_at:new Date().toISOString()})).eq('id',1).select();
+  btn.disabled=false;
+  if(res.error){toast(res.error.message,true);return;}
+  if(!res.data||res.data.length===0){toast('Not allowed. Log in with the admin email.',true);return;}
+  toast('Saved');
+}
+
+function logoutButton(){
+  return el('button',{class:'ghost',type:'button',onclick:async()=>{await sb.auth.signOut();showLogin();}},'Log out');
+}
+
+function showLogin(){
+  const email=el('input',{type:'email',placeholder:'Admin email',autocomplete:'username'});
+  const pass=el('input',{type:'password',placeholder:'Password',autocomplete:'current-password'});
+  const err=el('p',{class:'err'});
+  const btn=el('button',{type:'button'},'Log in');
+  btn.addEventListener('click',async()=>{
+    err.textContent='';
+    btn.disabled=true;
+    const res=await sb.auth.signInWithPassword({email:email.value.trim(),password:pass.value});
+    btn.disabled=false;
+    if(res.error){err.textContent=res.error.message;return;}
+    showDashboard();
+  });
+  root.replaceChildren(
+    el('div',{class:'top'},el('h1',null,'PDF Forge Admin')),
+    el('div',{class:'card'},el('label',null,'Email'),email,el('label',null,'Password'),pass,el('p',null,btn),err)
+  );
+}
+
+function announcementCard(cfg){
+  const on=el('input',{type:'checkbox',checked:cfg.announcement_enabled});
+  const title=el('input',{type:'text',maxlength:'80',value:cfg.announcement_title});
+  const msg=el('textarea',{maxlength:'400',value:cfg.announcement_message});
+  const btn=el('button',{type:'button'},'Save announcement');
+  btn.addEventListener('click',()=>save({announcement_enabled:on.checked,announcement_title:title.value.trim(),announcement_message:msg.value.trim()},btn));
+  return el('div',{class:'card'},
+    el('h2',null,'Announcement'),
+    el('p',{class:'muted'},'Shown as a banner on the app home screen. Users can dismiss it.'),
+    el('div',{class:'row'},el('span',null,'Show announcement'),on),
+    el('label',null,'Title (optional)'),title,
+    el('label',null,'Message'),msg,
+    el('p',null,btn)
+  );
+}
+
+function toolsCard(cfg){
+  const disabled=new Set(cfg.disabled_tools||[]);
+  const boxes=TOOLS.map(function(t){
+    const box=el('input',{type:'checkbox',checked:!disabled.has(t[0])});
+    return {key:t[0],box:box,row:el('div',{class:'row'},el('span',null,t[1]),box)};
+  });
+  const btn=el('button',{type:'button'},'Save tools');
+  btn.addEventListener('click',()=>save({disabled_tools:boxes.filter(b=>!b.box.checked).map(b=>b.key)},btn));
+  return el('div',{class:'card'},
+    el('h2',null,'Tools'),
+    el('p',{class:'muted'},'Ticked = available. Unticked tools show as temporarily unavailable in the app.'),
+    boxes.map(b=>b.row),
+    el('p',null,btn)
+  );
+}
+
+function versionCard(cfg){
+  const minV=el('input',{type:'number',min:'1',value:String(cfg.min_version_code)});
+  const latest=el('input',{type:'text',maxlength:'20',value:cfg.latest_version_name});
+  const url=el('input',{type:'url',placeholder:'https://...',value:cfg.update_url});
+  const msg=el('textarea',{maxlength:'300',value:cfg.update_message});
+  const btn=el('button',{type:'button'},'Save version settings');
+  btn.addEventListener('click',()=>{
+    const n=parseInt(minV.value,10);
+    if(isNaN(n)||n<1){toast('Minimum version code must be 1 or more',true);return;}
+    save({min_version_code:n,latest_version_name:latest.value.trim(),update_url:url.value.trim(),update_message:msg.value.trim()},btn);
+  });
+  return el('div',{class:'card'},
+    el('h2',null,'Force update'),
+    el('p',{class:'muted'},'Any app whose version code is lower than the minimum is blocked behind an Update screen with your download link. The first release is version code 1. Only raise the minimum after the new APK is available at the link.'),
+    el('label',null,'Minimum version code'),minV,
+    el('label',null,'Latest version name (shown to users)'),latest,
+    el('label',null,'Download link for the new APK'),url,
+    el('label',null,'Message on the update screen'),msg,
+    el('p',null,btn)
+  );
+}
+
+function barList(title,rows,nameKey,labelFn){
+  const max=Math.max(1,...rows.map(r=>r.count));
+  return el('div',null,
+    el('h2',{style:'margin-top:16px'},title),
+    rows.length?rows.map(r=>el('div',{class:'bar'},
+      el('span',{class:'name'},labelFn?labelFn(r[nameKey]):r[nameKey]),
+      el('div',{class:'track'},el('div',{class:'fill',style:'width:'+Math.round(r.count/max*100)+'%'})),
+      el('span',{class:'num'},r.count)
+    )):el('p',{class:'muted'},'No data yet.')
+  );
+}
+
+async function loadUsage(days,box){
+  box.replaceChildren(el('p',{class:'muted'},'Loading...'));
+  const res=await sb.rpc('usage_summary',{p_days:days});
+  if(res.error){
+    box.replaceChildren(el('p',{class:'err'},res.error.message+' (did you run the usage_summary SQL?)'));
+    return;
+  }
+  const d=res.data;
+  box.replaceChildren(
+    el('div',{class:'big'},d.total),
+    el('p',{class:'muted'},'events in the last '+days+' days'),
+    barList('By tool',d.by_tool,'tool',k=>TOOL_NAMES[k]||k),
+    barList('By app version',d.by_version,'app_version'),
+    barList('By day',d.by_day,'day')
+  );
+}
+
+function usageCard(){
+  const box=el('div');
+  const chips=el('div',{class:'chips'});
+  [7,30,90].forEach(function(n){
+    const c=el('button',{class:'chip'+(n===30?' on':''),type:'button'},n+' days');
+    c.addEventListener('click',function(){
+      Array.from(chips.children).forEach(x=>x.classList.remove('on'));
+      c.classList.add('on');
+      loadUsage(n,box);
+    });
+    chips.append(c);
+  });
+  loadUsage(30,box);
+  return el('div',{class:'card'},
+    el('h2',null,'Usage'),
+    el('p',{class:'muted'},'Anonymous counts of tool opens. One open is one event. People are not identified, so this is not a count of users.'),
+    chips,box
+  );
+}
+
+async function showDashboard(){
+  root.replaceChildren(el('p',{class:'muted'},'Loading...'));
+  const res=await sb.from('app_config').select('*').eq('id',1).single();
+  if(res.error||!res.data){
+    root.replaceChildren(
+      el('p',{class:'err'},'Could not load settings: '+(res.error?res.error.message:'no data')),
+      logoutButton()
+    );
+    return;
+  }
+  const cfg=res.data;
+  root.replaceChildren(
+    el('div',{class:'top'},el('h1',null,'PDF Forge Admin'),logoutButton()),
+    announcementCard(cfg),
+    toolsCard(cfg),
+    versionCard(cfg),
+    usageCard()
+  );
+}
+
+sb.auth.onAuthStateChange(function(event){
+  if(event==='SIGNED_OUT')showLogin();
+});
+
+(async function boot(){
+  const res=await sb.auth.getSession();
+  if(res.data&&res.data.session)showDashboard();else showLogin();
+})();
+</script>
+</body>
+</html>
