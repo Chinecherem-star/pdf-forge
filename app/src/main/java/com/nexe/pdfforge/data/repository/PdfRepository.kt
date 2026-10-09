@@ -4,10 +4,13 @@ import android.content.Context
 import com.nexe.pdfforge.data.model.PdfInfo
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.tom_roush.pdfbox.pdmodel.PDDocument
+import com.tom_roush.pdfbox.pdmodel.encryption.AccessPermission
+import com.tom_roush.pdfbox.pdmodel.encryption.InvalidPasswordException
+import com.tom_roush.pdfbox.pdmodel.encryption.StandardProtectionPolicy
 import java.io.File
 import kotlin.math.roundToInt
 
-/** Merge / extract / inspect PDFs using the Android port of PDFBox. */
+/** Merge / extract / inspect / lock PDFs using the Android port of PDFBox. */
 class PdfRepository(context: Context) {
 
     init {
@@ -69,6 +72,39 @@ class PdfRepository(context: Context) {
                 created = info.creationDate?.timeInMillis,
                 modified = info.modificationDate?.timeInMillis
             )
+        }
+    }
+
+    /** True if the PDF needs a password to open (or has any encryption). */
+    fun isEncrypted(file: File): Boolean {
+        return try {
+            PDDocument.load(file).use { it.isEncrypted }
+        } catch (e: InvalidPasswordException) {
+            true
+        }
+    }
+
+    /** Writes a copy of [input] that asks for [password] to open (AES 128-bit). */
+    fun protect(input: File, output: File, password: String) {
+        require(password.length >= 4) { "Use a password with at least 4 characters." }
+        PDDocument.load(input).use { doc ->
+            require(!doc.isEncrypted) { "This PDF is already password protected." }
+            val policy = StandardProtectionPolicy(password, password, AccessPermission())
+            policy.encryptionKeyLength = 128
+            policy.setPreferAES(true)
+            doc.protect(policy)
+            output.parentFile?.mkdirs()
+            doc.save(output)
+        }
+    }
+
+    /** Writes a copy of [input] with the password removed. Needs the correct password. */
+    fun unlock(input: File, password: String, output: File) {
+        PDDocument.load(input, password).use { doc ->
+            require(doc.isEncrypted) { "This PDF isn't password protected." }
+            doc.isAllSecurityToBeRemoved = true
+            output.parentFile?.mkdirs()
+            doc.save(output)
         }
     }
 
