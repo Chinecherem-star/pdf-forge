@@ -45,7 +45,7 @@ const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const root=document.getElementById('app');
 
-const TOOLS=[['text_to_pdf','Text to PDF'],['text_converter','Text Converter'],['image_to_pdf','Image to PDF'],['merge_pdf','Merge PDF'],['split_pdf','Split PDF'],['pdf_to_image','PDF to Image'],['pdf_info','PDF Info']];
+const TOOLS=[['text_to_pdf','Text to PDF'],['text_converter','Text Converter'],['image_to_pdf','Image to PDF'],['pdf_editor','PDF Editor'],['word_editor','Word Editor'],['lock_pdf','Lock PDF'],['merge_pdf','Merge PDF'],['split_pdf','Split PDF'],['pdf_to_image','PDF to Image'],['pdf_info','PDF Info']];
 const TOOL_NAMES=Object.fromEntries(TOOLS);
 TOOL_NAMES.app_open='App opens';
 

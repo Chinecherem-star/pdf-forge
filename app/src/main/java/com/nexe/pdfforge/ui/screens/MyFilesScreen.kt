@@ -28,6 +28,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -35,6 +36,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -49,12 +51,16 @@ import com.nexe.pdfforge.ui.viewmodel.FileManagerViewModel
 import com.nexe.pdfforge.ui.viewmodel.SortOption
 import com.nexe.pdfforge.ui.viewmodel.visibleFiles
 import com.nexe.pdfforge.util.FileUtils
+import java.io.File
 import java.text.DateFormat
 import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MyFilesScreen(viewModel: FileManagerViewModel = viewModel()) {
+fun MyFilesScreen(
+    onOpenWith: (String, File) -> Unit = { _, _ -> },
+    viewModel: FileManagerViewModel = viewModel()
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -73,7 +79,15 @@ fun MyFilesScreen(viewModel: FileManagerViewModel = viewModel()) {
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = { TopAppBar(title = { Text("My Files") }) }
+        topBar = {
+            TopAppBar(
+                title = { Text("My Files", style = MaterialTheme.typography.titleLarge) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent
+                )
+            )
+        }
     ) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -117,9 +131,19 @@ fun MyFilesScreen(viewModel: FileManagerViewModel = viewModel()) {
                 if (group.isNotEmpty()) {
                     item(key = "header_${category.name}") { SectionHeader(category.label) }
                     items(group, key = { it.file.absolutePath }) { model ->
+                        val extras = buildList<Pair<String, () -> Unit>> {
+                            if (model.category == FileCategory.PDF) {
+                                add("Edit PDF" to { onOpenWith("pdf_editor", model.file) })
+                                add("Lock or unlock" to { onOpenWith("lock_pdf", model.file) })
+                            }
+                            if (model.file.extension.equals("docx", ignoreCase = true)) {
+                                add("Edit text" to { onOpenWith("word_editor", model.file) })
+                            }
+                        }
                         FileRow(
                             model = model,
                             dateText = dateFormat.format(Date(model.modified)),
+                            extras = extras,
                             onOpen = {
                                 if (!FileUtils.openFile(context, model.file, FileUtils.mimeFor(model.file))) {
                                     viewModel.showMessage("No app found to open this file")
@@ -179,6 +203,7 @@ fun MyFilesScreen(viewModel: FileManagerViewModel = viewModel()) {
 private fun FileRow(
     model: PdfFileModel,
     dateText: String,
+    extras: List<Pair<String, () -> Unit>>,
     onOpen: () -> Unit,
     onShare: () -> Unit,
     onRename: () -> Unit,
@@ -200,6 +225,12 @@ private fun FileRow(
                         text = { Text("Open") },
                         onClick = { expanded = false; onOpen() }
                     )
+                    extras.forEach { (label, action) ->
+                        DropdownMenuItem(
+                            text = { Text(label) },
+                            onClick = { expanded = false; action() }
+                        )
+                    }
                     DropdownMenuItem(
                         text = { Text("Share") },
                         onClick = { expanded = false; onShare() }

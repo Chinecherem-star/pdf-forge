@@ -1,12 +1,14 @@
 package com.nexe.pdfforge.ui.navigation
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -17,10 +19,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.nexe.pdfforge.data.remote.RemoteConfig
+import com.nexe.pdfforge.ui.components.FloatingNavBar
 import com.nexe.pdfforge.ui.screens.HomeScreen
 import com.nexe.pdfforge.ui.screens.ImageToPdfScreen
+import com.nexe.pdfforge.ui.screens.LockPdfScreen
 import com.nexe.pdfforge.ui.screens.MergePdfScreen
 import com.nexe.pdfforge.ui.screens.MyFilesScreen
+import com.nexe.pdfforge.ui.screens.PdfEditorScreen
 import com.nexe.pdfforge.ui.screens.PdfInfoScreen
 import com.nexe.pdfforge.ui.screens.PdfToImageScreen
 import com.nexe.pdfforge.ui.screens.SettingsScreen
@@ -28,6 +33,8 @@ import com.nexe.pdfforge.ui.screens.SplitPdfScreen
 import com.nexe.pdfforge.ui.screens.TextConverterScreen
 import com.nexe.pdfforge.ui.screens.TextToPdfScreen
 import com.nexe.pdfforge.ui.screens.UnavailableScreen
+import com.nexe.pdfforge.ui.screens.WordEditorScreen
+import com.nexe.pdfforge.util.FileHandoff
 
 @Composable
 fun AppNavGraph(
@@ -53,29 +60,40 @@ fun AppNavGraph(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             if (showBottomBar) {
-                NavigationBar {
-                    bottomNavItems.forEach { item ->
-                        NavigationBarItem(
-                            selected = currentRoute == item.route,
-                            onClick = {
-                                navController.navigate(item.route) {
-                                    popUpTo(Screen.Home.route) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-                            icon = { Icon(item.icon, contentDescription = item.title) },
-                            label = { Text(item.title) }
-                        )
+                FloatingNavBar(
+                    items = bottomNavItems,
+                    currentRoute = currentRoute,
+                    onSelect = { item ->
+                        navController.navigate(item.route) {
+                            popUpTo(Screen.Home.route) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
-                }
+                )
             }
         }
     ) { innerPadding ->
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.padding(innerPadding),
+            enterTransition = {
+                fadeIn(animationSpec = tween(320)) +
+                    slideInHorizontally(
+                        animationSpec = tween(380, easing = FastOutSlowInEasing),
+                        initialOffsetX = { it / 10 }
+                    )
+            },
+            exitTransition = { fadeOut(animationSpec = tween(200)) },
+            popEnterTransition = { fadeIn(animationSpec = tween(320)) },
+            popExitTransition = {
+                fadeOut(animationSpec = tween(220)) +
+                    slideOutHorizontally(
+                        animationSpec = tween(300, easing = FastOutSlowInEasing),
+                        targetOffsetX = { it / 10 }
+                    )
+            }
         ) {
             composable(Screen.Home.route) {
                 HomeScreen(
@@ -83,7 +101,14 @@ fun AppNavGraph(
                     onToolClick = { tool -> navController.navigate(tool.route) }
                 )
             }
-            composable(Screen.MyFiles.route) { MyFilesScreen() }
+            composable(Screen.MyFiles.route) {
+                MyFilesScreen(
+                    onOpenWith = { route, file ->
+                        FileHandoff.put(route, file)
+                        navController.navigate(route)
+                    }
+                )
+            }
             composable(Screen.Settings.route) { SettingsScreen() }
 
             composable(Screen.TextToPdf.route) {
@@ -94,6 +119,15 @@ fun AppNavGraph(
             }
             composable(Screen.ImageToPdf.route) {
                 ToolGate(Screen.ImageToPdf, config, goBack) { ImageToPdfScreen(onBack = goBack) }
+            }
+            composable(Screen.PdfEditor.route) {
+                ToolGate(Screen.PdfEditor, config, goBack) { PdfEditorScreen(onBack = goBack) }
+            }
+            composable(Screen.WordEditor.route) {
+                ToolGate(Screen.WordEditor, config, goBack) { WordEditorScreen(onBack = goBack) }
+            }
+            composable(Screen.LockPdf.route) {
+                ToolGate(Screen.LockPdf, config, goBack) { LockPdfScreen(onBack = goBack) }
             }
             composable(Screen.MergePdf.route) {
                 ToolGate(Screen.MergePdf, config, goBack) { MergePdfScreen(onBack = goBack) }
